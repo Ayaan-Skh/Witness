@@ -1,0 +1,65 @@
+# ─────────────────────────────────────────────
+# Witness — Python Dependencies
+# Install with: pip install -r requirements.txt
+# Python 3.11+ required
+# ─────────────────────────────────────────────
+
+# ── Core / Utilities ─────────────────────────
+python-dotenv==1.0.1        # Reads .env file into os.environ
+pydantic==2.7.1             # Data validation and serialization (used in API models)
+httpx==0.27.0               # Async HTTP client (used for OCDS API calls)
+requests==2.31.0            # Sync HTTP client (simpler cases)
+python-dateutil==2.9.0      # Flexible date parsing
+
+# ── Database ─────────────────────────────────
+psycopg2-binary==2.9.9      # PostgreSQL driver
+sqlalchemy==2.0.30          # ORM (used by FastAPI, optional for direct queries)
+alembic==1.13.1             # Database migrations (for schema changes post-launch)
+
+
+# ── Satellite Imagery ────────────────────────
+sentinelhub==3.10.2         # Sentinel Hub Python SDK (satellite tile fetching)
+# rasterio==1.3.10            # GeoTIFF reading/writing (satellite tile storage)
+Pillow==10.3.0              # Image manipulation (tile visualization)
+matplotlib==3.8.4           # Plotting (before/after tile visualization)
+
+# ── GDELT / BigQuery ─────────────────────────
+google-cloud-bigquery==3.23.0   # BigQuery Python client
+google-auth==2.29.0             # Google authentication
+db-dtypes==1.2.0                # BigQuery ↔ pandas type compatibility
+
+# ── LangChain / LangGraph ────────────────────
+langchain==0.2.5            # LLM orchestration layer
+langchain-openai==0.1.9     # OpenAI-specific LangChain integration
+langgraph==0.2.14           # Graph-based agent orchestration
+langchain-core==0.2.9       # Core abstractions
+
+# ── LLM Provider ─────────────────────────────
+openai==1.30.5              # OpenAI Python SDK
+
+# ── Vector Memory ────────────────────────────
+chromadb==0.5.3             # Vector database for historical anomaly memory
+sentence-transformers==2.7.0  # Local embedding model (avoids API cost for embeddings)
+
+# ── API / Web ─────────────────────────────────
+fastapi==0.111.0            # REST API framework
+uvicorn[standard]==0.29.0   # ASGI server
+python-multipart==0.0.9     # File upload support (for satellite tile uploads)
+
+# ── Scheduling ───────────────────────────────
+APScheduler==3.10.4         # Daily pipeline scheduling
+
+# ── Development / Testing ────────────────────
+pytest==8.2.2               # Test runner
+pytest-asyncio==0.23.7      # Async test support
+pytest-cov==5.0.0           # Test coverage reporting
+black==24.4.2               # Code formatter
+ruff==0.4.7                 # Linter
+
+# ── Geospatial ───────────────────────────────
+geopandas==0.14.4           # DataFrame operations for geographic data
+shapely==2.0.4              # Geometric operations (point-in-polygon, distance, etc.)
+pyproj==3.6.1               # Coordinate reference system transformations
+numpy==1.26.4               # Array math (satellite tile processing)
+scipy==1.13.0               # Statistical functions (z-score computation)
+ipykernel==6.29.4           # Jupyter support for exploratory work

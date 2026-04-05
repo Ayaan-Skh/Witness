@@ -1,0 +1,29 @@
+# Spins up a local PostgreSQL 16 instance with PostGIS extension enabled.
+# This is the fastest way to get a properly configured database running
+# without installing PostgreSQL directly on your machine.
+#
+# Usage:
+#   docker compose up -d        # Start in background
+#   docker compose down         # Stop and remove containers
+#   docker compose down -v      # Stop AND delete all data (clean slate)
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4   # Official PostGIS image on PostgreSQL 16
+    container_name: witness_postgres
+    environment:
+      POSTGRES_DB: witness_db
+      POSTGRES_USER: witness_user
+      POSTGRES_PASSWORD: witness_pass
+    ports:
+      - "5432:5432"               # Maps container port 5432 to your local port 5432
+    volumes:
+      - witness_pgdata:/var/lib/postgresql/data   # Persists data across restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U witness_user -d witness_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  witness_pgdata:   # Named volume — Docker manages where this lives on disk
