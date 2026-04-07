@@ -11,7 +11,7 @@ from psycopg2.extras import RealDictCursor
 from config import DATABASE_URL
 
 
-_pool=pg_pool.ThreadedConnectionPool | None = None 
+_pool=pg_pool.ThreadedConnectionPool | None = None
 
 def init_pool(minconn:int=2,maxconn:int=10):
     ''' Initialize the connection pool. Called once during application startup '''
