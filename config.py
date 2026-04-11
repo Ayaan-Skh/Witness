@@ -19,7 +19,7 @@ DATABASE_URL=os.getenv(
 )
 
 CHROMA_PERSIST_DIR=os.getenv("CHROMA_PERSIST_DIR",' ./data/chroma_db')
-TITLE_CACHE_DIR = os.getenv("TITLE_CACHE_DIR","./data/title_cache")
+TILE_CACHE_DIR = os.getenv("TILE_CACHE_DIR","./data/tile_cache")
 
 # LLM Configurations
 
