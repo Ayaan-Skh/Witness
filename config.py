@@ -30,7 +30,7 @@ LLM_MAX_TOKENS=2048
 
 # Detection Thresholds
 SATELLITE_CHANGE_THRESHOLD = 0.35    # Change score above this triggers an AnomalyEvent
-SATELLITE_NDVI_THRESHOLD = 0.15      # NDVI drop (vegetation change indicator) above this flags it
+SATELLITE_NDVI_DROP_THRESHOLD = 0.15      # NDVI drop (vegetation change indicator) above this flags it
 SATELLITE_RESOLUTION_M = 10 # 10 meters per pixel 
 
 # GDELT anamoly detection thresholds

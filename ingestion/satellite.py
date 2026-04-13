@@ -1,4 +1,3 @@
-from ast import List
 import hashlib
 import json 
 from ntpath import exists
@@ -8,7 +7,7 @@ from datetime import date,datetime, timezone,timedelta
 import runpy
 from sys import meta_path
 import time
-from typing import Optional
+from typing import List, Optional
 from pathlib import Path
 
 import numpy as np
@@ -53,7 +52,9 @@ except ImportError:
     SentinelHubRequest = None
     SHConfig = None
     bbox_to_dimensions = None
-    
+
+# Tests patch this name to simulate SDK presence without importing sentinelhub.
+SENTINELHUB_AVAILABLE = SENTINEL_AVAILABLE
 
 # ------ CONFIGURATION ------
 def _get_sh_config() -> "SHConfig":
@@ -166,7 +167,7 @@ def _read_from_cache(cache_key:str)->Optional[tuple[np.ndarray,dict]]:
     """
     array_path, meta_path=_cache_path(cache_key)
     if not array_path.exists() or not meta_path.exists():
-        return None;
+        return None
     try:
         arr=np.load(array_path)
         with open(meta_path) as f:
@@ -242,14 +243,14 @@ def get_tile(
         cached=_read_from_cache(cache_key)
         if cached is not None:
             arr, meta=cached
-            return arr,{**meta,"cache hit":True}
+            return arr, {**meta, "cache_hit": True}
     
     # ----------------------
     #       API fetch 
     # ----------------------
-    if not SENTINEL_AVAILABLE:
+    if not SENTINELHUB_AVAILABLE:
         raise RuntimeError("Sentinel hub not installed. Please install before running it")
-    
+
     cfg=_get_sh_config() 
     sh_bbox=BBox(bbox=bbox,crs=CRS.WGS84)
     
@@ -300,7 +301,7 @@ def get_tile(
     
     metadata={
         "bbox":bbox,
-        "target_data":target_date.isoformat(),
+        "target_date":target_date.isoformat(),
         "time_from":time_from.isoformat(),
         "time_to":time_to.isoformat(),
         "resolution_m":resolution_m,
@@ -393,7 +394,7 @@ def list_available_dates(
     changes as new imagery arrives). Keep calls infrequent — once per pipeline
     run per region is sufficient.
     """
-    if not SENTINEL_AVAILABLE:
+    if not SENTINELHUB_AVAILABLE:
         raise RuntimeError("Sentinel Hub not available")
     from sentinelhub import SentinelHubCatalog, CatalogRequest, filter as sh_filter    
 
@@ -482,6 +483,9 @@ def save_file_to_disk(
         np.save(path, arr)                  # Save the NumPy array using NumPy's binary format
 
     return str(path)     # Return the file path (as a string) of the saved file
+
+
+save_tile_to_disk = save_file_to_disk  # alias used by tests and callers expecting the older name
 
 
 # ----------------------------------------
