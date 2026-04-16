@@ -173,7 +173,7 @@ REGIONS_BY_ID:dict[str,MonitoredRegion]={r.region_id: r for r in MONITORED_REGIO
     
 # SCHEDULE CONFIGURATIONS    
 PIPELINE_RUN_HOUR_UTC = 2 #Mostly after data is updated everywhere.
-PIPELINE_RUNMINUTE_UTC = 1 # Avoid running exactly on the hour to prevent conflicts with data updates that often happen at the tip of hour.
+PIPELINE_RUN_MINUTE_UTC = 1 # Avoid running exactly on the hour to prevent conflicts with data updates that often happen at the tip of hour.
 PIPELINE_LOOKBACK_DAYS = 3
 
 # API CONFIGURATIONS
