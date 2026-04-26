@@ -7,11 +7,14 @@
 
 from __future__ import annotations
 
+from locale import currency
 import logging
 import traceback
 from datetime import date, datetime, timedelta, timezone
+from turtle import st
 from typing import Optional
 
+from dotenv import parser
 from numpy.lib.introspect import opt_func_info
 
 from config import (
@@ -42,7 +45,7 @@ def run_satellite_stage(
     resolution_m:int=60,
     dry_run:bool=False
 ):
-    f"""
+    """
     Runs change for every monitored region for target_date.
     
     Uses (target_date - 30 days) as the refrence before the date.
@@ -150,4 +153,192 @@ def run_pipeline(
         except Exception as e:
             log.warning(f"DB unavailable — running in no-persist mode: {e}")
             conn = None
-     
+    stage_results:dict[str,dict]={}
+    total_events=0
+    total_errors=0
+    final_status="COMPLETED"
+    
+    
+    try:
+        # --------- Stage 1: Satellite ----------------
+        sat_result=run_satellite_stage(
+            target_date=target_date,
+            region_ids=region_ids,
+            resolution_m=resolution_m,
+            dry_run=dry_run
+        )
+        
+        stage_results['satellite']={
+            "status":"ok" if sat_result["errors"]== 0 else "partial",
+            "events_created":sat_result["events_created"],
+            "errors":sat_result["errors"],
+            "regions_results":sat_result['region_results']
+        }
+        total_events+=sat_result['events_created']
+        total_errors+=sat_result['region_results']
+        
+        # -------- Persistant events -----------------
+        if conn and not dry_run and sat_result['events']:
+            from repository import save_anomaly_events_batch
+            saved=save_anomaly_events_batch(sat_result['events'], conn)
+            conn.commit()
+            log.info(f"Persisted {saved} satellite events to DB")
+            
+            
+        #  ----------- Stage 2 and 3 (GDELT and Procurement) -------------- 
+        stage_results['gdelt']={"status":"pending"}
+        stage_results['procurement']={"status":"pending"}
+        
+        # --------------- Stage 4: Agent ----------------
+        stage_results['agent'] = {"status":"pending"}
+        
+        if total_errors >0 and total_events == 0:
+            final_status="FAILED"
+        elif total_errors > 0:
+            final_status="PARTIAL"     
+    
+    except Exception as exc:
+        final_status="FAILED"
+        log.error(f"Pipeline Run Failed:{exc}")
+        log.debug(traceback.format_exc())
+    
+    finally:
+        elapsed = (datetime.now(timezone.utc) - run_started).total_seconds()
+        if conn and run_id:
+            try:
+                from repository import update_pipeline_run
+                update_pipeline_run(
+                    conn, run_id, final_status,
+                    stage_results, total_events, 0
+                )
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                from db import get_db
+                _db_ctx.__exit__(None, None, None)
+            except Exception:
+                pass    
+    
+    summary = {
+        "run_id":        run_id,
+        "target_date":   target_date.isoformat(),
+        "status":        final_status,
+        "total_events":  total_events,
+        "total_errors":  total_errors,
+        "elapsed_sec":   round(elapsed, 2),
+        "stage_results": stage_results,
+    }
+    log.info(f"Pipeline complete | status={final_status} | "
+             f"events={total_events} | elapsed={elapsed:.1f}s")
+    return summary                  
+        
+        
+# ------------------------------------------------------------------------------- 
+# BACKFILL RUNNER
+# Runs the pipeline for N historical days — used for testing and calibration.
+# -------------------------------------------------------------------------------
+
+def run_backfill(
+    start_date:date,
+    end_date:date,
+    region_ids:Optional[list[str]] = None,
+    resolution_m:int=60,
+    dry_run:bool=False
+)->list[dict]:
+    """
+    Runs the pipeline for every date in [start_date, end_date]
+    Returns a list of per-date summary dicts
+
+    Use this to process historical data for calibration or demo prep.
+    Tiles are cached after first prep so re-running is cheap.
+    """ 
+    results=[]
+    current=start_date
+    while current <= end_date:
+        log.info(f"Backfill: processing {current}")
+        result=run_pipeline(
+            target_date=current,
+            region_ids=region_ids,
+            resolution_m=resolution_m,
+            dry_run=dry_run,
+            use_db=not dry_run
+        )
+        results.append(result)
+        current+=timedelta(days=1)
+    return results
+
+
+
+# ---------------------------------------------
+# APSCHEDULER SETUP
+# ---------------------------------------------
+ 
+def build_scheduler():
+    """
+    Creates and returns a configured APScheduler instance.
+    Called by the main entry point (api/main.py or a standalone runner).
+    """
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+ 
+    scheduler = BackgroundScheduler(timezone="UTC")
+    scheduler.add_job(
+        func=lambda: run_pipeline(use_db=True),
+        trigger=CronTrigger(
+            hour=PIPELINE_RUN_HOUR_UTC,
+            minute=PIPELINE_RUN_MINUTE_UTC,
+        ),
+        id="daily_pipeline",
+        name="Witness Daily Pipeline",
+        misfire_grace_time=3600,   # If missed by up to 1 hour, still run
+        coalesce=True,             # If multiple missed runs, run only once
+    )
+    return scheduler
+ 
+
+# ------------------------
+# CLI Entry Point
+# ------------------------
+if __name__=="__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Witness Pipeline Runner")
+    
+    parser.add_argument("--date",       type=str, help="YYYY-MM-DD (default: yesterday)")
+    
+    parser.add_argument("--regions",    type=str, help="Comma-separated region IDs")
+    
+    parser.add_argument("--resolution", type=int, default=60)
+    
+    parser.add_argument("--dry-run",    action="store_true", help="Skip DB writes")
+    
+    parser.add_argument("--no-db",      action="store_true", help="Skip DB entirely")
+    
+    parser.add_argument("--backfill",   type=str, help="start:end dates e.g. 2021-01-01:2021-03-01")
+    args = parser.parse_args()
+ 
+    region_ids = args.regions.split(",") if args.regions else None
+ 
+    if args.backfill:
+        start_str, end_str = args.backfill.split(":")
+        summaries = run_backfill(
+            start_date=date.fromisoformat(start_str),
+            end_date=date.fromisoformat(end_str),
+            region_ids=region_ids,
+            resolution_m=args.resolution,
+            dry_run=args.dry_run,
+        )
+        total_events = sum(s["total_events"] for s in summaries)
+        print(f"\n✓ Backfill complete: {len(summaries)} days, {total_events} total events")
+    else:
+        target = date.fromisoformat(args.date) if args.date else None
+        summary = run_pipeline(
+            target_date=target,
+            region_ids=region_ids,
+            resolution_m=args.resolution,
+            dry_run=args.dry_run,
+            use_db=not args.no_db,
+        )
+        import json
+        print(json.dumps(summary, indent=2, default=str))
