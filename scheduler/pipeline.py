@@ -113,8 +113,8 @@ def run_satellite_stage(
     
     
 def run_pipeline(
-    target_date:Optional[date],
-    region_ids:Optional[list[str]],
+    target_date:Optional[date]=None,
+    region_ids:Optional[list[str]]=None,
     resolution_m:int=60,
     dry_run:bool=False,
     use_db:bool=True
@@ -146,7 +146,7 @@ def run_pipeline(
             from db import get_db
             from repository import log_pipeline_run, update_pipeline_run, save_anomaly_events_batch
             _db_ctx=get_db()
-            conn=_db_ctx.__enter__
+            conn=_db_ctx.__enter__()
             run_id=log_pipeline_run(conn)
             conn.commit()
             logging.info(f"Pipeline run_id:{run_id}")
@@ -172,10 +172,10 @@ def run_pipeline(
             "status":"ok" if sat_result["errors"]== 0 else "partial",
             "events_created":sat_result["events_created"],
             "errors":sat_result["errors"],
-            "regions_results":sat_result['region_results']
+            "region_results":sat_result['region_results']
         }
         total_events+=sat_result['events_created']
-        total_errors+=sat_result['region_results']
+        total_errors+=sat_result['errors']
         
         # -------- Persistant events -----------------
         if conn and not dry_run and sat_result['events']:

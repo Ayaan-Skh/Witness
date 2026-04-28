@@ -5,21 +5,29 @@
 from contextlib import contextmanager
 from typing import Generator
 
-from psycopg2 import pool as pg_pool
-from psycopg2.extras import RealDictCursor
+try:
+    from psycopg2 import pool as pg_pool
+    from psycopg2.extras import RealDictCursor
+except ModuleNotFoundError:  # pragma: no cover - handled in tests without DB deps
+    pg_pool = None
+    RealDictCursor = None
 
 from config import DATABASE_URL
 
 
-_pool=pg_pool.ThreadedConnectionPool | None = None
+_pool = None
 
 def init_pool(minconn:int=2,maxconn:int=10):
     ''' Initialize the connection pool. Called once during application startup '''
+    if pg_pool is None:
+        raise RuntimeError("psycopg2 is not installed")
     global _pool
     _pool=pg_pool.ThreadedConnectionPool(minconn,maxconn,DATABASE_URL)
 
-def get_pool()->pg_pool.ThreadedConnectionPool:
+def get_pool() -> "pg_pool.ThreadedConnectionPool":
     """ Return the pool. Initialize it if needed."""
+    if pg_pool is None:
+        raise RuntimeError("psycopg2 is not installed")
     global _pool 
     if _pool is None:
         init_pool()
