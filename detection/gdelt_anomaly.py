@@ -45,20 +45,20 @@ from ingestion.gdelt import (
 
 from normalization.schema import AnomalyEvent, AnomalySource, SignalType
 
-log=logging.info("witness.gdelt_anomaly")
+log = logging.getLogger("witness.gdelt_anomaly")
 
 #----------------------------
 # Baseline computation
 #----------------------------
 def compute_baseline(
     values:list[float],
-    excluded_zeros:bool=False
+    exclude_zeros:bool=False
 )->tuple[float,float]:
     """
     Computes the mean and standard deviation of a time series.
     Agrs:
         values:         List of daily metric values over the basleine period
-        excluded_zeros: If true zero values are excluded from the baseline.
+        exclude_zeros: If true zero values are excluded from the baseline.
                         Used for tone: a day with zero events has no meaningful tone value, and including it would skew the baseline
     
     Returns:
@@ -72,7 +72,7 @@ def compute_baseline(
           check sample count before trusting z-scores.
     """
     arr=np.array([v for v in values if v is not None], dtype=np.float64)
-    if excluded_zeros:
+    if exclude_zeros:
         arr=arr[arr != 0]
     
     if len(arr) == 0:
@@ -129,8 +129,8 @@ def detect_tone_crash(
     current_rows=[r for r in tone_series if r['event_date'] == target_date]
     
     if not current_rows or current_rows[0]['avg_tone'] is None:
-        log.debug(f"{region_id} has no tone data for {target_date}")
-        return 0.0,1.0,0.0
+        log.warning(f"{region_id} has no tone data for {target_date}")
+        return None, 0.0, 1.0, 0.0
     
     current_tone=current_rows[0]['avg_tone']
     
@@ -138,10 +138,10 @@ def detect_tone_crash(
     if len(baseline_tones) < 7:
         log.warning(f'{region_id}: Only {len(baseline_tones)} baseline tone days data available')
     
-    mean,std=compute_baseline(baseline_tones,excluded_zeros=True)
+    mean,std=compute_baseline(baseline_tones,exclude_zeros=True)
     zscore=compute_zscore(current_tone, mean, std)
     
-    return current_tone, mean, std        
+    return current_tone, mean, std, zscore        
         
 
 def detect_communication_blackout(
