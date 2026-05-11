@@ -133,3 +133,36 @@ def update_pipeline_run(conn, run_id: str, status: str,
             (status, json.dumps(stage_results), events_created,
              briefs_created, error_details, run_id)
         )
+
+
+
+def save_investigation_brief(brief, conn) -> str:
+    """Insert or update an InvestigationBrief in investigation_briefs."""
+    import json as _json
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO investigation_briefs
+                (brief_id, region_id, time_window_start, time_window_end,
+                 confidence_score, contributing_streams, evidence,
+                 agent_reasoning, status)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (brief_id) DO UPDATE SET
+                confidence_score    = EXCLUDED.confidence_score,
+                agent_reasoning     = EXCLUDED.agent_reasoning,
+                status              = EXCLUDED.status,
+                updated_at          = NOW()
+            """,
+            (
+                brief.brief_id,
+                brief.region_id,
+                brief.time_window_start,
+                brief.time_window_end,
+                brief.confidence_score,
+                brief.contributing_streams,
+                _json.dumps(brief.evidence),
+                brief.agent_reasoning,
+                brief.status.value,
+            )
+        )
+    return brief.brief_id
