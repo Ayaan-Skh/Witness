@@ -1,5 +1,5 @@
 -- schema.sql
--- ─────────────────────────────────────────────────────────────────────────────
+-- ------------------------------------------------
 -- Witness Database Schema
 --
 -- Run this file once against your PostgreSQL instance to initialize the schema:
@@ -12,10 +12,10 @@
 --   \c witness_db
 --   CREATE EXTENSION IF NOT EXISTS postgis;
 --   CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
--- ─────────────────────────────────────────────────────────────────────────────
+-- ------------------------------------------------
 
 
--- ─────────────────────────────────────────────
+-- ------------------------
 -- WHY PostGIS?
 --
 -- Plain PostgreSQL stores coordinates as two plain numbers (lat, lng).
@@ -32,13 +32,13 @@
 -- Think of PostGIS as adding a GPS navigation system to PostgreSQL.
 -- Without it, your database knows cities exist. With it, it knows how
 -- to calculate the shortest route between them.
--- ─────────────────────────────────────────────
+-- ------------------------
 
 
--- ─────────────────────────────────────────────
+-- ------------------------
 -- TABLE: monitored_regions
 -- Mirrors the MonitoredRegion config objects, persisted to DB for joins.
--- ─────────────────────────────────────────────
+-- ------------------------
 CREATE TABLE IF NOT EXISTS monitored_regions (
     region_id       TEXT PRIMARY KEY,
     name            TEXT NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS monitored_regions (
 CREATE INDEX IF NOT EXISTS idx_regions_country ON monitored_regions(country_code);
 
 
--- ─────────────────────────────────────────────
+-- ------------------------
 -- TABLE: anomaly_events
 --
 -- The central facts table. Every anomaly detected by every ingestion
@@ -64,7 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_regions_country ON monitored_regions(country_code
 --
 -- This is the "incident log" — like a police department's CAD system
 -- where every call, regardless of type, gets a timestamped record.
--- ─────────────────────────────────────────────
+-- ------------------------
 CREATE TABLE IF NOT EXISTS anomaly_events (
     event_id        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     source          TEXT NOT NULL CHECK (source IN ('SATELLITE', 'GDELT', 'PROCUREMENT')),
@@ -116,7 +116,7 @@ CREATE INDEX IF NOT EXISTS idx_events_region_time ON anomaly_events(region_id, t
 CREATE INDEX IF NOT EXISTS idx_events_source ON anomaly_events(source, timestamp DESC);
 
 
--- ─────────────────────────────────────────────
+-- ------------------------
 -- TABLE: investigation_briefs
 --
 -- The output of the LangGraph agent. Each brief is the result of the agent
@@ -125,7 +125,7 @@ CREATE INDEX IF NOT EXISTS idx_events_source ON anomaly_events(source, timestamp
 --
 -- These are the "detective memos" — the synthesized output after the agent
 -- has correlated the raw incident log into a coherent picture.
--- ─────────────────────────────────────────────
+-- ------------------------
 CREATE TABLE IF NOT EXISTS investigation_briefs (
     brief_id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     region_id               TEXT NOT NULL REFERENCES monitored_regions(region_id),
@@ -166,7 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_briefs_confidence ON investigation_briefs(confide
 CREATE INDEX IF NOT EXISTS idx_briefs_status ON investigation_briefs(status);
 
 
--- ─────────────────────────────────────────────
+-- ------------------------
 -- TABLE: region_baselines
 --
 -- Stores the computed baseline statistics for each region+source+metric
@@ -175,7 +175,7 @@ CREATE INDEX IF NOT EXISTS idx_briefs_status ON investigation_briefs(status);
 --
 -- Refreshed daily by the pipeline. Think of this as the "what is normal
 -- here" reference card that the anomaly detectors consult.
--- ─────────────────────────────────────────────
+-- ------------------------
 CREATE TABLE IF NOT EXISTS region_baselines (
     id              SERIAL PRIMARY KEY,
     region_id       TEXT NOT NULL REFERENCES monitored_regions(region_id),
@@ -195,12 +195,12 @@ CREATE INDEX IF NOT EXISTS idx_baselines_lookup
     ON region_baselines(region_id, source, metric, computed_to DESC);
 
 
--- ─────────────────────────────────────────────
+-- ------------------------
 -- TABLE: pipeline_runs
 --
 -- Audit log for every pipeline execution. If something goes wrong,
 -- this table tells you exactly what ran, when, and whether it succeeded.
--- ─────────────────────────────────────────────
+-- ------------------------
 CREATE TABLE IF NOT EXISTS pipeline_runs (
     run_id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -215,9 +215,9 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
 );
 
 
--- ─────────────────────────────────────────────
+-- ------------------------
 -- TRIGGER: auto-update investigation_briefs.updated_at
--- ─────────────────────────────────────────────
+-- ------------------------
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN

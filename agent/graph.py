@@ -305,7 +305,7 @@ def build_graph():
     builder = StateGraph(WitnessState)
     
     # Register Nodes
-    builder.add_node("cluster_anomalies", cluster_anomalies)
+    builder.add_node("cluster_anomalies", )
     builder.add_node("score_convergence", score_convergence)
     builder.add_node("retrieve_historical_context", retrieve_historical_context)
     builder.add_node("generate_brief", generate_brief)

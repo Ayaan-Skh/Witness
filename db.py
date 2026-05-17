@@ -72,7 +72,7 @@ def initialize_schema():
     Runs schema.sql against the database.
     Safe to run multiple time cause all statements use "CREATE if not exists"
     """
-    with open("sehema.sql",'r') as f:
+    with open("schema.sql", "r", encoding="utf-8") as f:
         sql=f.read()
     
     with get_db() as conn:
